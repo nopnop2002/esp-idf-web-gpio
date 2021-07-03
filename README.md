@@ -81,7 +81,7 @@ You need to convert the image file to base64.
 httpd_resp_sendstr_chunk(req, "<img src=\"data:image/png;base64,BASE64_ENCODE_STRING\" width=\"128\" height=\"128\">");
 ```
 
-Images in base64 format are stored in the icons folder.
+Images in base64 format are stored in the icons folder.   
 I converted using the base64 command.   
 ```
 base64 box-in-icon.png > box-in-icon.txt
