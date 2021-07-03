@@ -84,5 +84,5 @@ httpd_resp_sendstr_chunk(req, "<img src=\"data:image/png;base64,BASE64_ENCODE_ST
 Images in base64 format are stored in the icons folder.   
 I converted using the base64 command.   
 ```
-$ base64 box-in-icon.png > box-in-icon.txt
+$ base64 png/box-in-icon.png > icons/box-in-icon.txt
 ```
