@@ -71,7 +71,7 @@ If you change the value of GPIO12, the value of GPIO14 will change.
 If you change the value of GPIO13, the value of GPIO15 will change.   
 
 # How to browse image data
-ESP32 http server don't support this:
+http server of esp-idf does not support this:   
 ```
 httpd_resp_sendstr_chunk(req, "<img src=\"/spiffs/picture.jpg\" width=\"128\" height=\"128\">");
 ```
