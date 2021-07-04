@@ -233,11 +233,11 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 		if (gpios[index].mode == 1) {
 			strcpy(textFileName, "/icons/turn-out-icon.txt");
 			// POST to [/changeMode/OUTPUT/index]
-			sprintf(action, "/changeMode%.10sOUTPUT%.10s%d", req->uri, req->uri, index);
+			sprintf(action, "/changeMode/OUTPUT/%d", index);
 		} else {
 			strcpy(textFileName, "/icons/turn-in-icon.txt");
 			// POST to [/changeMode/INPUT/index]
-			sprintf(action, "/changeMode%.10sINPUT%.10s%d", req->uri, req->uri, index);
+			sprintf(action, "/changeMode/INPUT/%d", index);
 		}
 		httpd_resp_sendstr_chunk(req, "<td align=\"center\">");
 		Text2Button(req, textFileName, action);
@@ -262,11 +262,11 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 			if (gpios[index].value == 0) {
 				strcpy(textFileName, "/icons/turn-on-icon.txt");
 				// POST to [/changeValue/ON/index]
-				sprintf(action, "/changeValue%.10sON%.10s%d", req->uri, req->uri, index);
+				sprintf(action, "/changeValue/ON/%d", index);
 			} else {
 				strcpy(textFileName, "/icons/turn-off-icon.txt");
 				// POST to [/changeValue/OFF/index]
-				sprintf(action, "/changeValue%.10sOFF%.10s%d", req->uri, req->uri, index);
+				sprintf(action, "/changeValue/OFF/%d", index);
 			}
 			httpd_resp_sendstr_chunk(req, "<td align=\"center\">");
 			Text2Button(req, textFileName, action);
