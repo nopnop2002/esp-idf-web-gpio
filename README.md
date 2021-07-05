@@ -147,7 +147,7 @@ You need to convert the image file to base64.
 ```
 httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
 httpd_resp_sendstr_chunk(req, (char *)BASE64_ENCODE_STRING);
-httpd_resp_sendstr_chunk(req, "\" />");
+httpd_resp_sendstr_chunk(req, "\" width=\"128\" height=\"128\">");");
 ```
 
 Images in base64 format are stored in the icons folder.   
