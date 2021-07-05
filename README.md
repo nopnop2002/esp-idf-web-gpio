@@ -78,7 +78,7 @@ If you change the value of GPIO13, the value of GPIO15 will change.
 |API|Method|Resource Example|Description|
 |:-:|:-:|:-:|:-:|
 |/api/gpio/info|GET||Used for clients to get gpio information|
-|/api/gpio/mode|POST|{"gpio":12, "mode":"INPUT"}|Used for clients to set gpio direction|
+|/api/gpio/mode|POST|{"gpio":12, "mode":"INPUT"}<br>{"gpio":12, "mode":"OUTPUT"}|Used for clients to set gpio direction|
 |/api/gpio/value|POST|{"gpio":12, "value":1}|Used for clients to set gpio value|
 
 # Using RESTful API with curl command   
