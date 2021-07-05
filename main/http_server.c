@@ -21,6 +21,7 @@
 #include "esp_vfs.h"
 #include "esp_spiffs.h"
 #include "esp_http_server.h"
+#include "cJSON.h"
 #include <driver/gpio.h>
 
 #include "gpio.h"
@@ -33,6 +34,15 @@ extern QueueHandle_t xQueueHttp;
 extern GPIO_t *gpios;
 extern int16_t ngpios;
 
+#define SCRATCH_BUFSIZE (1024)
+
+typedef struct rest_server_context {
+	char base_path[ESP_VFS_PATH_MAX + 1]; // Not used in this project
+	char scratch[SCRATCH_BUFSIZE];
+} rest_server_context_t;
+
+
+#if 0
 static void SPIFFS_Directory(char * path) {
 	DIR* dir = opendir(path);
 	assert(dir != NULL);
@@ -43,6 +53,7 @@ static void SPIFFS_Directory(char * path) {
 	}
 	closedir(dir);
 }
+#endif
 
 // Calculate the size after conversion to base64
 // http://akabanessa.blog73.fc2.com/blog-entry-83.html
@@ -188,7 +199,7 @@ esp_err_t Text2Button(httpd_req_t *req, char * textFileName, char * action)
 	return ESP_OK;
 }
 
-/* HTTP GET handler */
+/* Handler for roor get handler */
 static esp_err_t root_get_handler(httpd_req_t *req)
 {
 	ESP_LOGD(TAG, "root_get_handler req->uri=[%s]", req->uri);
@@ -287,7 +298,7 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
-/* HTTP change mode handler */
+/* Handler for change gpio mode handler */
 static esp_err_t change_mode_handler(httpd_req_t *req)
 {
 	ESP_LOGI(TAG, "change_mode_handler req->uri=[%s]", req->uri);
@@ -324,7 +335,7 @@ static esp_err_t change_mode_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
-/* HTTP change value handler */
+/* Handler for change gpio value handler */
 static esp_err_t change_value_handler(httpd_req_t *req)
 {
 	ESP_LOGI(TAG, "change_value_handler req->uri=[%s]", req->uri);
@@ -361,9 +372,296 @@ static esp_err_t change_value_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
+/* Handler for getting system information handler */
+static esp_err_t system_info_get_handler(httpd_req_t *req)
+{
+	ESP_LOGI(TAG, "system_info_get_handler req->uri=[%s]", req->uri);
+	httpd_resp_set_type(req, "application/json");
+	cJSON *root = cJSON_CreateObject();
+	esp_chip_info_t chip_info;
+	esp_chip_info(&chip_info);
+	cJSON_AddStringToObject(root, "version", IDF_VER);
+	cJSON_AddNumberToObject(root, "cores", chip_info.cores);
+	//const char *sys_info = cJSON_Print(root);
+	char *sys_info = cJSON_Print(root);
+	httpd_resp_sendstr(req, sys_info);
+	// Buffers returned by cJSON_Print must be freed by the caller.
+	// Please use the proper API (cJSON_free) rather than directly calling stdlib free.
+	cJSON_free(sys_info);
+	cJSON_Delete(root);
+	return ESP_OK;
+}
+
+// Create array
+cJSON *Create_array_of_anything(cJSON **objects,int array_num)
+{
+	cJSON *prev = 0;
+	cJSON *root;
+	root = cJSON_CreateArray();
+	for (int i=0;i<array_num;i++) {
+		if (!i)	{
+			root->child=objects[i];
+		} else {
+			prev->next=objects[i];
+			objects[i]->prev=prev;
+		}
+		prev=objects[i];
+	}
+	return root;
+}
+
+
+/* Handler for getting gpio infomation handler */
+static esp_err_t gpio_info_get_handler(httpd_req_t *req)
+{
+	ESP_LOGI(TAG, "gpio_info_get_handler req->uri=[%s]", req->uri);
+	for(int index=0;index<ngpios;index++) {
+		ESP_LOGI(TAG, "gpios[%d] pin=%d mode=%d value=%d",
+		index, gpios[index].pin, gpios[index].mode, gpios[index].value);
+		if (gpios[index].mode == 1) { // INPUT pin
+			// Get current value
+			gpios[index].value = gpio_get_level(gpios[index].pin);
+			ESP_LOGI(TAG, "gpios.pin=%d value=%d", gpios[index].pin, gpios[index].value);
+		}
+	}
+
+	httpd_resp_set_type(req, "application/json");
+
+	int array_num = ngpios;
+	//cJSON *objects[4];
+	cJSON **objects = NULL;
+	objects = (cJSON **)calloc(array_num, sizeof(cJSON *));
+	if (objects == NULL) {
+		ESP_LOGE(TAG, "calloc fail");
+	}
+
+	for(int i=0;i<array_num;i++) {
+		objects[i] = cJSON_CreateObject();
+	}
+
+	cJSON *root;
+	root = Create_array_of_anything(objects, array_num);
+
+	for(int index=0;index<ngpios;index++) {
+		cJSON_AddNumberToObject(objects[index], "id", index);
+		cJSON_AddNumberToObject(objects[index], "gpio", gpios[index].pin);
+		if (gpios[index].mode == MODE_INPUT) {
+			cJSON_AddStringToObject(objects[index], "mode", "INPUT");
+		} else {
+			cJSON_AddStringToObject(objects[index], "mode", "OUTPUT");
+		}
+		cJSON_AddNumberToObject(objects[index], "value", gpios[index].value);
+	}
+	//const char *gpio_info = cJSON_Print(root);
+	char *gpio_info = cJSON_Print(root);
+	ESP_LOGD(TAG, "gpio_info\n%s",gpio_info);
+	httpd_resp_sendstr(req, gpio_info);
+	// Buffers returned by cJSON_Print must be freed by the caller.
+	// Please use the proper API (cJSON_free) rather than directly calling stdlib free.
+	cJSON_free(gpio_info);
+	cJSON_Delete(root);
+	free(objects);
+	return ESP_OK;
+}
+
+/* Handler for setting gpio mode handler */
+static esp_err_t gpio_mode_set_handler(httpd_req_t *req)
+{
+	ESP_LOGI(TAG, "gpio_mode_set_handler req->uri=[%s]", req->uri);
+	int total_len = req->content_len;
+	int cur_len = 0;
+	char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+	int received = 0;
+	if (total_len >= SCRATCH_BUFSIZE) {
+		/* Respond with 500 Internal Server Error */
+		httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+		return ESP_FAIL;
+	}
+	while (cur_len < total_len) {
+		received = httpd_req_recv(req, buf + cur_len, total_len);
+		if (received <= 0) {
+			/* Respond with 500 Internal Server Error */
+			httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+			return ESP_FAIL;
+		}
+		cur_len += received;
+	}
+	buf[total_len] = '\0';
+	ESP_LOGI(TAG, "buf=[%s]", buf);
+
+	bool parse = true;
+	cJSON *root = cJSON_Parse(buf);
+
+	// Search gpio item
+	int gpio = 0;
+	cJSON* state = cJSON_GetObjectItem(root, "gpio");
+	if (state) {
+		gpio = cJSON_GetObjectItem(root, "gpio")->valueint;
+	} else {
+		ESP_LOGE(TAG, "gpio item not nound");
+		parse = false;
+	}
+
+	// Search mode item
+	char mode[12];
+	state = cJSON_GetObjectItem(root, "mode");
+	if (state) {
+		//mode = cJSON_GetObjectItem(root,"mode")->valuestring;
+		strcpy(mode, cJSON_GetObjectItem(root,"mode")->valuestring);
+		ESP_LOGI(TAG, "mode=[%s]", mode);
+		//if (value != 0 && value != 1) {
+		if (strcmp(mode, "INPUT") != 0 && strcmp(mode, "OUTPUT") != 0 ) {
+			ESP_LOGE(TAG, "mode item not correct");
+			parse = false;
+		}
+	} else {
+		ESP_LOGE(TAG, "mode item not nound");
+		parse = false;
+	}
+
+	cJSON_Delete(root);
+	if (parse) {
+		ESP_LOGI(TAG, "gpio_mode_set_handler gpio = %d, mode = %s", gpio, mode);
+		bool isMatch = false;
+		for(int index=0;index<ngpios;index++) {
+			ESP_LOGI(TAG, "gpios[%d] pin=%d mode=%d value=%d",
+			index, gpios[index].pin, gpios[index].mode, gpios[index].value);
+			if (gpios[index].pin == gpio) {
+				isMatch = true;
+				GPIO_t gpioBuf;
+				gpioBuf.command = CMD_SETMODE;
+				gpioBuf.pin = index;
+				if (strcmp(mode, "INPUT") == 0) {
+					ESP_LOGI(TAG, "[to INPUT] index=%d gpio=%d", index, gpios[index].pin);
+					gpioBuf.mode = MODE_INPUT;
+				} else {
+					ESP_LOGI(TAG, "[to OUTPUT] index=%d gpio=%d", index, gpios[index].pin);
+					gpioBuf.mode = MODE_OUTPUT;
+				}
+				if (xQueueSend(xQueueHttp, &gpioBuf, portMAX_DELAY) != pdPASS) {
+					ESP_LOGE(TAG, "xQueueSend Fail");
+				}
+				httpd_resp_sendstr(req, "GPIO mode set successfully");
+				break;
+			} // end if
+		} // end for
+		if (isMatch == false) {
+			ESP_LOGE(TAG, "Not found gpio in csv");
+			httpd_resp_sendstr(req, "Not found gpio in csv");
+		}
+		
+	} else {
+		ESP_LOGE(TAG, "Request parameter not correct");
+		httpd_resp_sendstr(req, "Request parameter not correct");
+	}
+	return ESP_OK;
+}
+
+/* Handler for setting gpio value handler */
+static esp_err_t gpio_value_set_handler(httpd_req_t *req)
+{
+	ESP_LOGI(TAG, "gpio_value_set_handler req->uri=[%s]", req->uri);
+	int total_len = req->content_len;
+	int cur_len = 0;
+	char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
+	int received = 0;
+	if (total_len >= SCRATCH_BUFSIZE) {
+		/* Respond with 500 Internal Server Error */
+		httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "content too long");
+		return ESP_FAIL;
+	}
+	while (cur_len < total_len) {
+		received = httpd_req_recv(req, buf + cur_len, total_len);
+		if (received <= 0) {
+			/* Respond with 500 Internal Server Error */
+			httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Failed to post control value");
+			return ESP_FAIL;
+		}
+		cur_len += received;
+	}
+	buf[total_len] = '\0';
+	ESP_LOGI(TAG, "buf=[%s]", buf);
+
+	bool parse = true;
+	cJSON *root = cJSON_Parse(buf);
+
+	// Search gpio item
+	int gpio = 0;
+	cJSON* state = cJSON_GetObjectItem(root, "gpio");
+	if (state) {
+		gpio = cJSON_GetObjectItem(root, "gpio")->valueint;
+	} else {
+		ESP_LOGE(TAG, "gpio item not nound");
+		parse = false;
+	}
+
+	// Search value item
+	int value = 0;
+	state = cJSON_GetObjectItem(root, "value");
+	if (state) {
+		value = cJSON_GetObjectItem(root, "value")->valueint;
+		if (value != 0 && value != 1) {
+			ESP_LOGE(TAG, "value item not correct");
+			parse = false;
+		}
+	} else {
+		ESP_LOGE(TAG, "value item not found");
+		parse = false;
+	}
+
+	cJSON_Delete(root);
+	if (parse) {
+		ESP_LOGI(TAG, "gpio_value_set_handler gpio = %d, value = %d", gpio, value);
+		bool isMatch = false;
+		for(int index=0;index<ngpios;index++) {
+			ESP_LOGI(TAG, "gpios[%d] pin=%d mode=%d value=%d",
+			index, gpios[index].pin, gpios[index].mode, gpios[index].value);
+			if (gpios[index].pin == gpio) {
+				isMatch = true;
+				if (gpios[index].mode == MODE_INPUT) {
+					ESP_LOGE(TAG, "gpio is for INPUT %d", gpio);
+					httpd_resp_sendstr(req, "GPIO is for INPUT");
+				} else {
+					GPIO_t gpioBuf;
+					gpioBuf.command = CMD_SETVALUE;
+					gpioBuf.pin = index;
+					gpioBuf.value = value;
+					if (value == 0) {
+						ESP_LOGI(TAG, "[to OFF] index=%d gpio=%d", index, gpios[index].pin);
+					} else {
+						ESP_LOGI(TAG, "[to ON] index=%d gpio=%d", index, gpios[index].pin);
+					}
+					if (xQueueSend(xQueueHttp, &gpioBuf, portMAX_DELAY) != pdPASS) {
+						ESP_LOGE(TAG, "xQueueSend Fail");
+					}
+					httpd_resp_sendstr(req, "GPIO value set successfully");
+				}
+				break;
+			} // end if
+		} // end for
+		if (isMatch == false) {
+			ESP_LOGE(TAG, "Not found gpio in csv");
+			httpd_resp_sendstr(req, "Not found gpio in csv");
+		}
+		
+	} else {
+		ESP_LOGE(TAG, "Request parameter not correct");
+		httpd_resp_sendstr(req, "Request parameter not correct");
+	}
+	return ESP_OK;
+}
+
+
+
 /* Function to start the file server */
 esp_err_t start_server(const char *base_path, int port)
 {
+	rest_server_context_t *rest_context = calloc(1, sizeof(rest_server_context_t));
+	if (rest_context == NULL) {
+		ESP_LOGE(TAG, "No memory for rest context");
+		while(1) { vTaskDelay(1); }
+	}
+
 	httpd_handle_t server = NULL;
 	httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 	config.server_port = port;
@@ -405,6 +703,42 @@ esp_err_t start_server(const char *base_path, int port)
 		//.user_ctx  = server_data	// Pass server data as context
 	};
 	httpd_register_uri_handler(server, &change_value);
+
+	/* URI handler for getting system info */
+	httpd_uri_t system_info_get_uri = {
+		.uri	   = "/api/system/info",
+		.method    = HTTP_GET,
+		.handler   = system_info_get_handler,
+		.user_ctx = rest_context
+	};
+	httpd_register_uri_handler(server, &system_info_get_uri);
+
+	/* URI handler for getting gpio info */
+	httpd_uri_t gpio_info_get_uri = {
+		.uri	   = "/api/gpio/info",
+		.method    = HTTP_GET,
+		.handler   = gpio_info_get_handler,
+		.user_ctx = rest_context
+	};
+	httpd_register_uri_handler(server, &gpio_info_get_uri);
+
+	/* URI handler for setting gpio mode */
+	httpd_uri_t gpio_mode_set_uri = {
+		.uri	   = "/api/gpio/mode",
+		.method    = HTTP_POST,
+		.handler   = gpio_mode_set_handler,
+		.user_ctx = rest_context
+	};
+	httpd_register_uri_handler(server, &gpio_mode_set_uri);
+
+	/* URI handler for setting gpio value */
+	httpd_uri_t gpio_value_set_uri = {
+		.uri	   = "/api/gpio/value",
+		.method    = HTTP_POST,
+		.handler   = gpio_value_set_handler,
+		.user_ctx = rest_context
+	};
+	httpd_register_uri_handler(server, &gpio_value_set_uri);
 
 	return ESP_OK;
 }

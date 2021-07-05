@@ -74,7 +74,70 @@ The simplest circuit connects GPIO12 and GPIO14, and GPIO13 and GPIO15.
 If you change the value of GPIO12, the value of GPIO14 will change.   
 If you change the value of GPIO13, the value of GPIO15 will change.   
 
-# How to browse image data
+# Using RESTful API   
+|API|Method|Resource|Description|
+|:-:|:-:|:-:|:-:|
+|/api/gpio/info|GET||Used for clients to get gpio information|
+|/api/gpio/mode|POST|{ <br />{"gpio":12, "mode":"INPUT"}<br />}|Used for clients to set gpio direction|
+|/api/gpio/value|POST|{ <br />{"gpio":12, "value":1}<br />}|Used for clients to set gpio value|
+
+# Using RESTful API with curl command   
+
+## /api/gpio/info   
+
+```
+$ curl 'http://esp32-server.local:8080/api/gpio/info' | python -m json.tool
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   254  100   254    0     0   1881      0 --:--:-- --:--:-- --:--:--  1881
+[
+    {
+        "id": 0,
+        "gpio": 12,
+        "mode": "OUTPUT",
+        "value": 0
+    },
+    {
+        "id": 1,
+        "gpio": 13,
+        "mode": "OUTPUT",
+        "value": 1
+    },
+    {
+        "id": 2,
+        "gpio": 14,
+        "mode": "INPUT",
+        "value": 0
+    },
+    {
+        "id": 3,
+        "gpio": 15,
+        "mode": "INPUT",
+        "value": 1
+    }
+]
+```
+
+## /api/gpio/mode   
+```
+$ curl -X POST -H "Content-Type: application/json" -d '{"gpio":12, "mode":"INPUT"}' http://esp32-server.local:8080/api/gpio/mode
+GPIO mode set successfully
+
+$ curl -X POST -H "Content-Type: application/json" -d '{"gpio":12, "mode":"OUTPUT"}' http://esp32-server.local:8080/api/gpio/mode
+GPIO mode set successfully
+
+```
+
+## /api/gpio/value   
+```
+$ curl -X POST -H "Content-Type: application/json" -d '{"gpio":12, "value":1}' http://esp32-server.local:8080/api/gpio/value
+GPIO value set successfully
+
+$ curl -X POST -H "Content-Type: application/json" -d '{"gpio":12, "value":0}' http://esp32-server.local:8080/api/gpio/value
+GPIO value set successfully
+```
+
+# How to browse image data using built-in http server
 http server of esp-idf does not support this:   
 ```
 httpd_resp_sendstr_chunk(req, "<img src=\"/spiffs/picture.jpg\" width=\"128\" height=\"128\">");
@@ -90,3 +153,4 @@ I converted using the base64 command.
 ```
 $ base64 png/box-in-icon.png > icons/box-in-icon.txt
 ```
+

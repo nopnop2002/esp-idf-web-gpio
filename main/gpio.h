@@ -1,4 +1,4 @@
-#define MODE_INPUT	 1
+#define MODE_INPUT   1
 #define MODE_OUTPUT  2
 
 #define CMD_SETMODE  100
