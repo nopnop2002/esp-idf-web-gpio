@@ -145,7 +145,9 @@ httpd_resp_sendstr_chunk(req, "<img src=\"/spiffs/picture.jpg\" width=\"128\" he
 
 You need to convert the image file to base64.   
 ```
-httpd_resp_sendstr_chunk(req, "<img src=\"data:image/png;base64,BASE64_ENCODE_STRING\" width=\"128\" height=\"128\">");
+httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
+httpd_resp_sendstr_chunk(req, (char *)BASE64_ENCODE_STRING);
+httpd_resp_sendstr_chunk(req, "\" />");
 ```
 
 Images in base64 format are stored in the icons folder.   
