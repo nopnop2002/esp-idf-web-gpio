@@ -75,7 +75,7 @@ If you change the value of GPIO12, the value of GPIO14 will change.
 If you change the value of GPIO13, the value of GPIO15 will change.   
 
 # Using RESTful API   
-|API|Method|Resource|Description|
+|API|Method|Resource Example|Description|
 |:-:|:-:|:-:|:-:|
 |/api/gpio/info|GET||Used for clients to get gpio information|
 |/api/gpio/mode|POST|{"gpio":12, "mode":"INPUT"}|Used for clients to set gpio direction|
