@@ -137,8 +137,8 @@ $ curl -X POST -H "Content-Type: application/json" -d '{"gpio":12, "value":0}' h
 GPIO value set successfully
 ```
 
-# How to browse image data using built-in http server
-http server of esp-idf does not support this:   
+# How to browse image data using built-in http server   
+Even if there are files in SPIFFS, the esp-idf http server does not support this:   
 ```
 httpd_resp_sendstr_chunk(req, "<img src=\"/spiffs/picture.jpg\" width=\"128\" height=\"128\">");
 ```
