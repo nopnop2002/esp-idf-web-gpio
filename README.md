@@ -1,5 +1,5 @@
 # esp-idf-web-gpio
-GPIO control using WEB.
+GPIO control using web browser.
 
 ![web-gpio-1](https://user-images.githubusercontent.com/6020549/124352292-84d99d00-dc3a-11eb-8f8a-45472e45eebe.jpg)
 
