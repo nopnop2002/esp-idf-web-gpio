@@ -21,7 +21,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "nvs_flash.h"
-#include "esp_vfs_fat.h"
+#include "esp_vfs.h"
 #include "esp_spiffs.h"
 #include "mdns.h"
 #include "lwip/dns.h"
@@ -67,37 +67,6 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 	}
 }
 
-bool parseAddress(int * ip, char * text) {
-	ESP_LOGD(TAG, "parseAddress text=[%s]",text);
-	int len = strlen(text);
-	int octet = 0;
-	char buf[4];
-	int index = 0;
-	for(int i=0;i<len;i++) {
-		char c = text[i];
-		if (c == '.') {
-			ESP_LOGD(TAG, "buf=[%s] octet=%d", buf, octet);
-			ip[octet] = strtol(buf, NULL, 10);
-			octet++;
-			index = 0;
-		} else {
-			if (index == 3) return false;
-			if (c < '0' || c > '9') return false;
-			buf[index++] = c;
-			buf[index] = 0;
-		}
-	}
-
-	if (strlen(buf) > 0) {
-		ESP_LOGD(TAG, "buf=[%s] octet=%d", buf, octet);
-		ip[octet] = strtol(buf, NULL, 10);
-		octet++;
-	}
-	if (octet != 4) return false;
-	return true;
-
-}
-
 void wifi_init_sta()
 {
 	s_wifi_event_group = xEventGroupCreate();
@@ -121,30 +90,6 @@ void wifi_init_sta()
 	ESP_LOGI(TAG, "CONFIG_STATIC_GW_ADDRESS=[%s]",CONFIG_STATIC_GW_ADDRESS);
 	ESP_LOGI(TAG, "CONFIG_STATIC_NM_ADDRESS=[%s]",CONFIG_STATIC_NM_ADDRESS);
 
-	int ip[4];
-	bool ret = parseAddress(ip, CONFIG_STATIC_IP_ADDRESS);
-	ESP_LOGI(TAG, "parseAddress ret=%d ip=%d.%d.%d.%d", ret, ip[0], ip[1], ip[2], ip[3]);
-	if (!ret) {
-		ESP_LOGE(TAG, "CONFIG_STATIC_IP_ADDRESS [%s] not correct", CONFIG_STATIC_IP_ADDRESS);
-	while(1) { vTaskDelay(1); }
-	}
-
-	int gw[4];
-	ret = parseAddress(gw, CONFIG_STATIC_GW_ADDRESS);
-	ESP_LOGI(TAG, "parseAddress ret=%d gw=%d.%d.%d.%d", ret, gw[0], gw[1], gw[2], gw[3]);
-	if (!ret) {
-		ESP_LOGE(TAG, "CONFIG_STATIC_GW_ADDRESS [%s] not correct", CONFIG_STATIC_GW_ADDRESS);
-	while(1) { vTaskDelay(1); }
-	}
-
-	int nm[4];
-	ret = parseAddress(nm, CONFIG_STATIC_NM_ADDRESS);
-	ESP_LOGI(TAG, "parseAddress ret=%d nm=%d.%d.%d.%d", ret, nm[0], nm[1], nm[2], nm[3]);
-	if (!ret) {
-		ESP_LOGE(TAG, "CONFIG_STATIC_NM_ADDRESS [%s] not correct", CONFIG_STATIC_NM_ADDRESS);
-	while(1) { vTaskDelay(1); }
-	}
-
 #if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
 	/* Stop DHCP client */
 	ESP_ERROR_CHECK(esp_netif_dhcpc_stop(netif));
@@ -152,10 +97,10 @@ void wifi_init_sta()
 
 	/* Set STATIC IP Address */
 	esp_netif_ip_info_t ip_info;
-	IP4_ADDR(&ip_info.ip, ip[0], ip[1], ip[2], ip[3]);
-	IP4_ADDR(&ip_info.gw, gw[0], gw[1], gw[2], gw[3]);
-	IP4_ADDR(&ip_info.netmask, nm[0], nm[1], nm[2], nm[3]);
-	//tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info);
+	memset(&ip_info, 0 , sizeof(esp_netif_ip_info_t));
+	ip_info.ip.addr = ipaddr_addr(CONFIG_STATIC_IP_ADDRESS);
+	ip_info.netmask.addr = ipaddr_addr(CONFIG_STATIC_NM_ADDRESS);
+	ip_info.gw.addr = ipaddr_addr(CONFIG_STATIC_GW_ADDRESS);;
 	esp_netif_set_ip_info(netif, &ip_info);
 
 #else
@@ -164,9 +109,10 @@ void wifi_init_sta()
 
 	/* Set STATIC IP Address */
 	tcpip_adapter_ip_info_t ipInfo;
-	IP4_ADDR(&ipInfo.ip, ip[0], ip[1], ip[2], ip[3]);
-	IP4_ADDR(&ipInfo.gw, gw[0], gw[1], gw[2], gw[3]);
-	IP4_ADDR(&ipInfo.netmask, nm[0], nm[1], nm[2], nm[3]);
+	memset(&ip_info, 0 , sizeof(tcpip_adapter_ip_info_t));
+	ip_info.ip.addr = ipaddr_addr(CONFIG_STATIC_IP_ADDRESS);
+	ip_info.netmask.addr = ipaddr_addr(CONFIG_STATIC_NM_ADDRESS);
+	ip_info.gw.addr = ipaddr_addr(CONFIG_STATIC_GW_ADDRESS);;
 	tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
 #endif
 
@@ -238,41 +184,16 @@ void initialise_mdns(void)
 #endif
 }
 
-#if 0
-/* Function to initialize SPIFFS */
-static esp_err_t init_spiffs(void)
-{
-	ESP_LOGI(TAG, "Initializing SPIFFS");
-	esp_vfs_spiffs_conf_t conf = {
-	  .base_path = "/spiffs",
-	  .partition_label = NULL,
-	  .max_files = 10,	// This decides the maximum number of files that can be created on the storage
-	  .format_if_mount_failed = true
-	};
-
-	esp_err_t ret = esp_vfs_spiffs_register(&conf);
-	if (ret != ESP_OK) {
-		if (ret == ESP_FAIL) {
-			ESP_LOGE(TAG, "Failed to mount or format filesystem");
-		} else if (ret == ESP_ERR_NOT_FOUND) {
-			ESP_LOGE(TAG, "Failed to find SPIFFS partition");
-		} else {
-			ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
-		}
-		return ESP_FAIL;
+static void SPIFFS_Directory(char * path) {
+	DIR* dir = opendir(path);
+	assert(dir != NULL);
+	while (true) {
+		struct dirent*pe = readdir(dir);
+		if (!pe) break;
+		ESP_LOGI(__FUNCTION__,"d_name=%s d_ino=%d d_type=%x", pe->d_name,pe->d_ino, pe->d_type);
 	}
-
-	size_t total = 0, used = 0;
-	ret = esp_spiffs_info(NULL, &total, &used);
-	if (ret != ESP_OK) {
-		ESP_LOGE(TAG, "Failed to get SPIFFS partition information (%s)", esp_err_to_name(ret));
-		return ESP_FAIL;
-	}
-
-	ESP_LOGI(TAG, "Partition size: total: %d, used: %d", total, used);
-	return ESP_OK;
+	closedir(dir);
 }
-#endif
 
 esp_err_t mountSPIFFS(char * partition_label, char * base_path, int max_files) {
 	ESP_LOGI(TAG, "Initializing SPIFFS file system");
@@ -430,23 +351,18 @@ void app_main(void)
 	// Initialize mDNS
 	initialise_mdns();
 
-#if 0
-	ESP_ERROR_CHECK(init_spiffs());
-#endif
-
-	/* Initialize file storage */
-	//char *partition_label = "storage0";
-	//char *base_path = "/csv"; 
+	/* Mount SPIFFS */
 	ret = mountSPIFFS("storage0", "/csv", 1);
 	if (ret != ESP_OK) {
 		ESP_LOGE(TAG, "mountSPIFFS fail");
 		while(1) { vTaskDelay(1); }
 	}
-	ret = mountSPIFFS("storage1", "/icons", 8);
+	ret = mountSPIFFS("storage1", "/icons", 12);
 	if (ret != ESP_OK) {
 		ESP_LOGE(TAG, "mountSPIFFS fail");
 		while(1) { vTaskDelay(1); }
 	}
+	SPIFFS_Directory("/icons/");
 
 	// Create Queue
 	xQueueHttp = xQueueCreate( 10, sizeof(GPIO_t) );

@@ -27,8 +27,6 @@
 #include "gpio.h"
 
 static const char *TAG = "HTTP";
-//static char *HTML_BODY = "/spiffs/body";
-//static SemaphoreHandle_t ctrl_task_sem;
 
 extern QueueHandle_t xQueueHttp;
 extern GPIO_t *gpios;
@@ -43,18 +41,6 @@ typedef struct rest_server_context {
 
 
 #if 0
-static void SPIFFS_Directory(char * path) {
-	DIR* dir = opendir(path);
-	assert(dir != NULL);
-	while (true) {
-		struct dirent*pe = readdir(dir);
-		if (!pe) break;
-		ESP_LOGI(__FUNCTION__,"d_name=%s d_ino=%d d_type=%x", pe->d_name,pe->d_ino, pe->d_type);
-	}
-	closedir(dir);
-}
-#endif
-
 // Calculate the size after conversion to base64
 // http://akabanessa.blog73.fc2.com/blog-entry-83.html
 int32_t calcBase64EncodedSize(int origDataSize)
@@ -154,8 +140,9 @@ esp_err_t Image2Button(httpd_req_t *req, char * imageFileName, char * action)
 	}
 	return ret;
 }
+#endif
 
-esp_err_t Text2Button(httpd_req_t *req, char * textFileName, char * action)
+esp_err_t Text2Button(httpd_req_t *req, char * textFileName, char * type, char * action)
 {
 	esp_err_t ret = ESP_FAIL;
 	struct stat st;
@@ -169,32 +156,75 @@ esp_err_t Text2Button(httpd_req_t *req, char * textFileName, char * action)
 	if((fp=fopen(textFileName, "r"))==NULL){
 		ESP_LOGE(TAG, "fopen fail. [%s]", textFileName);
 		return ESP_FAIL;
-	}else{
+	}
 
-		if (strlen(action) > 0) {
-			httpd_resp_sendstr_chunk(req, "<form method=\"post\" action=\"");
-			httpd_resp_sendstr_chunk(req, action);
-			httpd_resp_sendstr_chunk(req, "\">");
-			httpd_resp_sendstr_chunk(req, "<button type=\"submit\">");
-		}
+	if (strlen(action) > 0) {
+		httpd_resp_sendstr_chunk(req, "<form method=\"post\" action=\"");
+		httpd_resp_sendstr_chunk(req, action);
+		httpd_resp_sendstr_chunk(req, "\">");
+		httpd_resp_sendstr_chunk(req, "<button type=\"submit\">");
+	}
 
 
-		//httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
+	if (strcmp(type, "jpeg") == 0) {
+		httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
+	} else if (strcmp(type, "jpg") == 0) {
+		httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
+	} else if (strcmp(type, "png") == 0) {
 		httpd_resp_sendstr_chunk(req, "<img src=\"data:image/png;base64,");
+	} else {
+		ESP_LOGW(TAG, "file type fail. [%s]", type);
+		httpd_resp_sendstr_chunk(req, "<img src=\"data:image/png;base64,");
+	}
+
+	while(1) {
+		size_t bufferSize = fread(buffer, 1, sizeof(buffer), fp);
+		//ESP_LOGD(TAG, "bufferSize=%d", bufferSize);
+		if (bufferSize > 0) {
+			httpd_resp_send_chunk(req, buffer, bufferSize);
+		} else {
+			break;
+		}
+	}
+	fclose(fp);
+	httpd_resp_sendstr_chunk(req, "\">");
+
+	if (strlen(action) > 0) {
+		httpd_resp_sendstr_chunk(req, "</button></form>");
+	}
+	return ESP_OK;
+}
+
+esp_err_t Image2Html(httpd_req_t *req, char * filename, char * type)
+{
+	FILE * fhtml = fopen(filename, "r");
+	if (fhtml == NULL) {
+		ESP_LOGE(TAG, "fopen fail. [%s]", filename);
+		return ESP_FAIL;
+	}else{
+		char  buffer[64];
+
+		if (strcmp(type, "jpeg") == 0) {
+			httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
+		} else if (strcmp(type, "jpg") == 0) {
+			httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
+		} else if (strcmp(type, "png") == 0) {
+			httpd_resp_sendstr_chunk(req, "<img src=\"data:image/png;base64,");
+		} else {
+			ESP_LOGW(TAG, "file type fail. [%s]", type);
+			httpd_resp_sendstr_chunk(req, "<img src=\"data:image/png;base64,");
+		}
 		while(1) {
-			size_t bufferSize = fread(buffer, 1, sizeof(buffer), fp);
-			//ESP_LOGD(TAG, "bufferSize=%d", bufferSize);
+			size_t bufferSize = fread(buffer, 1, sizeof(buffer), fhtml);
+			ESP_LOGD(TAG, "bufferSize=%d", bufferSize);
 			if (bufferSize > 0) {
 				httpd_resp_send_chunk(req, buffer, bufferSize);
 			} else {
 				break;
 			}
 		}
-		fclose(fp);
-		httpd_resp_sendstr_chunk(req, "\" />");
-	}
-	if (strlen(action) > 0) {
-		httpd_resp_sendstr_chunk(req, "</button></form>");
+		fclose(fhtml);
+		httpd_resp_sendstr_chunk(req, "\">");
 	}
 	return ESP_OK;
 }
@@ -204,9 +234,6 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 {
 	ESP_LOGD(TAG, "root_get_handler req->uri=[%s]", req->uri);
 
-#if 0
-	SPIFFS_Directory("/icons/");
-#endif
 	for(int index=0;index<ngpios;index++) {
 		ESP_LOGD(TAG, "gpios[%d] pin=%d mode=%d value=%d",
 		index, gpios[index].pin, gpios[index].mode, gpios[index].value);
@@ -214,6 +241,9 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 
 	/* Send HTML file header */
 	httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
+
+	/* Send Image to HTML file */
+	Image2Html(req, "/icons/ESP-IDF.txt", "png");
 
 	// Start the table
 	httpd_resp_sendstr_chunk(req, "<table border=\"1\">");
@@ -237,7 +267,7 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 			strcpy(textFileName, "/icons/box-out-icon.txt");
 		}
 		httpd_resp_sendstr_chunk(req, "<td align=\"center\">");
-		Text2Button(req, textFileName, "");
+		Text2Button(req, textFileName, "png", "");
 		httpd_resp_sendstr_chunk(req, "</td>");
 
 		// change mode
@@ -251,7 +281,7 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 			sprintf(action, "/changeMode/INPUT/%d", index);
 		}
 		httpd_resp_sendstr_chunk(req, "<td align=\"center\">");
-		Text2Button(req, textFileName, action);
+		Text2Button(req, textFileName, "png", action);
 		httpd_resp_sendstr_chunk(req, "</td>");
 
 		// current value
@@ -261,7 +291,7 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 			strcpy(textFileName, "/icons/current-on-icon.txt");
 		}
 		httpd_resp_sendstr_chunk(req, "<td align=\"center\">");
-		Text2Button(req, textFileName, "");
+		Text2Button(req, textFileName, "png", "");
 		httpd_resp_sendstr_chunk(req, "</td>");
 
 		// change value
@@ -280,7 +310,7 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 				sprintf(action, "/changeValue/OFF/%d", index);
 			}
 			httpd_resp_sendstr_chunk(req, "<td align=\"center\">");
-			Text2Button(req, textFileName, action);
+			Text2Button(req, textFileName, "png", action);
 			httpd_resp_sendstr_chunk(req, "</td>");
 		}
 		httpd_resp_sendstr_chunk(req, "</tr>");
@@ -288,6 +318,11 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 
 	/* Finish the table */
 	httpd_resp_sendstr_chunk(req, "</tbody></table>");
+
+#if 0
+	/* Send Image to HTML file */
+	Image2Html(req, "/icons/ESP-IDF.txt", "png");
+#endif
 
 	/* Send remaining chunk of HTML file to complete it */
 	httpd_resp_sendstr_chunk(req, "</body></html>");
@@ -754,7 +789,8 @@ void http_server_task(void *pvParameters)
 	for(int index=0;index<ngpios;index++) {
 		ESP_LOGI(TAG, "gpios[%d] pin=%d mode=%d value=%d",
 		index, gpios[index].pin, gpios[index].mode, gpios[index].value);
-		gpio_pad_select_gpio(gpios[index].pin);
+		//gpio_pad_select_gpio(gpios[index].pin);
+		gpio_reset_pin(gpios[index].pin);
 		if (gpios[index].mode == MODE_INPUT) {
 			gpio_set_direction(gpios[index].pin, GPIO_MODE_INPUT );
 		} else {
@@ -762,14 +798,6 @@ void http_server_task(void *pvParameters)
 			gpio_set_level(gpios[index].pin, gpios[index].value);
 		}
 	}
-
-#if 0
-	// Create Semaphore
-	// This Semaphore is used for locking
-	ctrl_task_sem = xSemaphoreCreateBinary();
-	configASSERT( ctrl_task_sem );
-	xSemaphoreGive(ctrl_task_sem);
-#endif
 
 	ESP_ERROR_CHECK(start_server("/spiffs", CONFIG_WEB_PORT));
 	

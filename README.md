@@ -43,7 +43,8 @@ You can use static ip.
 
 You can connect using mDNS host name.
 ![config-mDNS](https://user-images.githubusercontent.com/6020549/124352362-c79b7500-dc3a-11eb-85be-199e1ea3bae6.jpg)
-![web-gpio-11](https://user-images.githubusercontent.com/6020549/124352392-ee59ab80-dc3a-11eb-9a71-fe199db0476d.jpg)
+
+![web-gpio-mdns](https://user-images.githubusercontent.com/6020549/134443304-64e76a3a-beec-4072-ab68-131d9bec01fd.jpg)
 
 
 # Definition GPIO   
@@ -140,14 +141,14 @@ GPIO value set successfully
 # How to browse image data using built-in http server   
 Even if there are files in SPIFFS, the esp-idf http server does not support this:   
 ```
-httpd_resp_sendstr_chunk(req, "<img src=\"/spiffs/picture.jpg\" width=\"128\" height=\"128\">");
+httpd_resp_sendstr_chunk(req, "<img src=\"/spiffs/picture.jpg\">");
 ```
 
 You need to convert the image file to base64.   
 ```
 httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
 httpd_resp_sendstr_chunk(req, (char *)BASE64_ENCODE_STRING);
-httpd_resp_sendstr_chunk(req, "\" />");
+httpd_resp_sendstr_chunk(req, "\">");
 ```
 
 Images in base64 format are stored in the icons folder.   
