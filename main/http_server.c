@@ -242,12 +242,20 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 	/* Send HTML file header */
 	httpd_resp_sendstr_chunk(req, "<!DOCTYPE html><html><body>");
 
+#if 0
 	/* Send Image to HTML file */
-	Image2Html(req, "/icons/ESP-IDF.txt", "png");
+	//Image2Html(req, "/icons/ESP-IDF.txt", "png");
+	Image2Html(req, "/icons/ESP-LOGO.txt", "png");
+#endif
 
 	// Start the table
 	httpd_resp_sendstr_chunk(req, "<table border=\"1\">");
+
+	// Start th thead
 	httpd_resp_sendstr_chunk(req, "<thead><tr><th>GPIO</th><th>CURRENT MODE</th><th>SET MODE</th><th>CURRENT VALUE</th><th>SET VALUE</th></tr></thead>");
+
+	// Start the tbody
+	httpd_resp_sendstr_chunk(req, "<tbody>");
 
 	char chunk[32];
 	char textFileName[64];
@@ -316,12 +324,15 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 		httpd_resp_sendstr_chunk(req, "</tr>");
 	}
 
-	/* Finish the table */
-	httpd_resp_sendstr_chunk(req, "</tbody></table>");
+	/* Finish the tbody */
+	httpd_resp_sendstr_chunk(req, "</tbody>");
 
-#if 0
+	/* Finish the table */
+	httpd_resp_sendstr_chunk(req, "</table>");
+
+#if 1
 	/* Send Image to HTML file */
-	Image2Html(req, "/icons/ESP-IDF.txt", "png");
+	Image2Html(req, "/icons/ESP-LOGO.txt", "png");
 #endif
 
 	/* Send remaining chunk of HTML file to complete it */
