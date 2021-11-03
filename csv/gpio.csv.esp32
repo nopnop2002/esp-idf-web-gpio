@@ -1,0 +1,23 @@
+#The file gpio.csv has three columns.
+#In the first column you need to specify the GPIO number.
+#On the ESP32, GPIO up to 39.
+#On the ESP32-S2, GPIO up to 53.
+#This project don't care about the maximum number of GPIO. You need to define it carefully.
+
+#In the second column you have to specify the GPIO direction.
+#The GPIO direction is either I(for INPUT) or O(for OUTPUT).
+#On the ESP32, GPIOs 35-39 are input-only so cannot be used as outputs.
+#On the ESP32-S2, GPIO 46 is input-only so cannot be used as outputs.
+#This project don't care if GPIO is input-only. You need to define it carefully.
+
+#In the last column you have to specify the GPIO Initial value for OUTPUT.
+#INPUT pin don't care.
+
+12,O,0
+13,O,1
+14,I,0
+15,I,0
+
+#The simplest circuit connects GPIO12 and GPIO14, and GPIO13 and GPIO15.
+#If you change the value of GPIO12, the value of GPIO14 will change.
+#If you change the value of GPIO13, the value of GPIO15 will change.

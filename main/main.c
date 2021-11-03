@@ -73,16 +73,11 @@ void wifi_init_sta()
 
 	ESP_LOGI(TAG,"ESP-IDF Ver%d.%d", ESP_IDF_VERSION_MAJOR, ESP_IDF_VERSION_MINOR);
 
-#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
 	ESP_LOGI(TAG,"ESP-IDF esp_netif");
 	ESP_ERROR_CHECK(esp_netif_init());
 	ESP_ERROR_CHECK(esp_event_loop_create_default());
 	esp_netif_t *netif = esp_netif_create_default_wifi_sta();
-#else
-	ESP_LOGI(TAG,"ESP-IDF tcpip_adapter");
-	tcpip_adapter_init();
-	ESP_ERROR_CHECK(esp_event_loop_create_default());
-#endif
+	assert(netif);
 
 #if CONFIG_STATIC_IP
 
@@ -90,7 +85,6 @@ void wifi_init_sta()
 	ESP_LOGI(TAG, "CONFIG_STATIC_GW_ADDRESS=[%s]",CONFIG_STATIC_GW_ADDRESS);
 	ESP_LOGI(TAG, "CONFIG_STATIC_NM_ADDRESS=[%s]",CONFIG_STATIC_NM_ADDRESS);
 
-#if ESP_IDF_VERSION_MAJOR >= 4 && ESP_IDF_VERSION_MINOR >= 1
 	/* Stop DHCP client */
 	ESP_ERROR_CHECK(esp_netif_dhcpc_stop(netif));
 	ESP_LOGI(TAG, "Stop DHCP Services");
@@ -103,18 +97,6 @@ void wifi_init_sta()
 	ip_info.gw.addr = ipaddr_addr(CONFIG_STATIC_GW_ADDRESS);;
 	esp_netif_set_ip_info(netif, &ip_info);
 
-#else
-	/* Stop DHCP client */
-	tcpip_adapter_dhcpc_stop(TCPIP_ADAPTER_IF_STA);
-
-	/* Set STATIC IP Address */
-	tcpip_adapter_ip_info_t ipInfo;
-	memset(&ip_info, 0 , sizeof(tcpip_adapter_ip_info_t));
-	ip_info.ip.addr = ipaddr_addr(CONFIG_STATIC_IP_ADDRESS);
-	ip_info.netmask.addr = ipaddr_addr(CONFIG_STATIC_NM_ADDRESS);
-	ip_info.gw.addr = ipaddr_addr(CONFIG_STATIC_GW_ADDRESS);;
-	tcpip_adapter_set_ip_info(TCPIP_ADAPTER_IF_STA, &ipInfo);
-#endif
 
 	/*
 	I referred from here.
@@ -352,7 +334,7 @@ void app_main(void)
 	initialise_mdns();
 
 	/* Mount SPIFFS */
-	ret = mountSPIFFS("storage0", "/csv", 1);
+	ret = mountSPIFFS("storage0", "/csv", 4);
 	if (ret != ESP_OK) {
 		ESP_LOGE(TAG, "mountSPIFFS fail");
 		while(1) { vTaskDelay(1); }
