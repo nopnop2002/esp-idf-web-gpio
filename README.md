@@ -53,7 +53,8 @@ The file gpio.csv has three columns.
 In the first column you need to specify the GPIO number.   
 On the ESP32, GPIO up to 39.   
 On the ESP32-S2, GPIO up to 53.   
-This project don't care about the maximum number of GPIO. You need to define it carefully.   
+This project don't care about the maximum number of GPIO.   
+This project don't care if the number is valid. You need to define it carefully.   
    
 In the second column you have to specify the GPIO Initial direction.   
 The GPIO direction is either I(for INPUT) or O(for OUTPUT).   
