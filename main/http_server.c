@@ -1,10 +1,10 @@
 /* HTTP Server Example
 
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
+	 This example code is in the Public Domain (or CC0 licensed, at your option.)
 
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
+	 Unless required by applicable law or agreed to in writing, this
+	 software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+	 CONDITIONS OF ANY KIND, either express or implied.
 */
 
 #include <stdio.h>
@@ -152,7 +152,7 @@ esp_err_t Text2Button(httpd_req_t *req, char * textFileName, char * type, char *
 	}
 
 	FILE * fp;
-	char  buffer[64];
+	char buffer[64];
 	if((fp=fopen(textFileName, "r"))==NULL){
 		ESP_LOGE(TAG, "fopen fail. [%s]", textFileName);
 		return ESP_FAIL;
@@ -202,7 +202,7 @@ esp_err_t Image2Html(httpd_req_t *req, char * filename, char * type)
 		ESP_LOGE(TAG, "fopen fail. [%s]", filename);
 		return ESP_FAIL;
 	}else{
-		char  buffer[64];
+		char buffer[64];
 
 		if (strcmp(type, "jpeg") == 0) {
 			httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
@@ -697,7 +697,12 @@ static esp_err_t gpio_value_set_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
-
+/* favicon get handler */
+static esp_err_t favicon_get_handler(httpd_req_t *req)
+{
+	ESP_LOGI(TAG, "favicon_get_handler req->uri=[%s]", req->uri);
+	return ESP_OK;
+}
 
 /* Function to start the file server */
 esp_err_t start_server(const char *base_path, int port)
@@ -725,66 +730,75 @@ esp_err_t start_server(const char *base_path, int port)
 
 	/* URI handler for root */
 	httpd_uri_t root = {
-		.uri	   = "/",	// Match all URIs of type /path/to/file
-		.method    = HTTP_GET,
-		.handler   = root_get_handler,
+		.uri		 = "/",	// Match all URIs of type /path/to/file
+		.method		 = HTTP_GET,
+		.handler	 = root_get_handler,
 		//.user_ctx  = server_data	// Pass server data as context
 	};
 	httpd_register_uri_handler(server, &root);
 
 	/* URI handler for change mode */
 	httpd_uri_t change_mode = {
-		.uri	   = "/changeMode/*",	// Match all URIs of type /changeMode/*
-		.method    = HTTP_POST,
-		.handler   = change_mode_handler,
+		.uri		 = "/changeMode/*",	// Match all URIs of type /changeMode/*
+		.method		 = HTTP_POST,
+		.handler	 = change_mode_handler,
 		//.user_ctx  = server_data	// Pass server data as context
 	};
 	httpd_register_uri_handler(server, &change_mode);
 
 	/* URI handler for change value */
 	httpd_uri_t change_value = {
-		.uri	   = "/changeValue/*",	// Match all URIs of type /changeValue/*
-		.method    = HTTP_POST,
-		.handler   = change_value_handler,
+		.uri		 = "/changeValue/*",	// Match all URIs of type /changeValue/*
+		.method		 = HTTP_POST,
+		.handler	 = change_value_handler,
 		//.user_ctx  = server_data	// Pass server data as context
 	};
 	httpd_register_uri_handler(server, &change_value);
 
 	/* URI handler for getting system info */
 	httpd_uri_t system_info_get_uri = {
-		.uri	   = "/api/system/info",
-		.method    = HTTP_GET,
-		.handler   = system_info_get_handler,
+		.uri		 = "/api/system/info",
+		.method		 = HTTP_GET,
+		.handler	 = system_info_get_handler,
 		.user_ctx = rest_context
 	};
 	httpd_register_uri_handler(server, &system_info_get_uri);
 
 	/* URI handler for getting gpio info */
 	httpd_uri_t gpio_info_get_uri = {
-		.uri	   = "/api/gpio/info",
-		.method    = HTTP_GET,
-		.handler   = gpio_info_get_handler,
+		.uri		 = "/api/gpio/info",
+		.method		 = HTTP_GET,
+		.handler	 = gpio_info_get_handler,
 		.user_ctx = rest_context
 	};
 	httpd_register_uri_handler(server, &gpio_info_get_uri);
 
 	/* URI handler for setting gpio mode */
 	httpd_uri_t gpio_mode_set_uri = {
-		.uri	   = "/api/gpio/mode",
-		.method    = HTTP_POST,
-		.handler   = gpio_mode_set_handler,
+		.uri		 = "/api/gpio/mode",
+		.method		 = HTTP_POST,
+		.handler	 = gpio_mode_set_handler,
 		.user_ctx = rest_context
 	};
 	httpd_register_uri_handler(server, &gpio_mode_set_uri);
 
 	/* URI handler for setting gpio value */
 	httpd_uri_t gpio_value_set_uri = {
-		.uri	   = "/api/gpio/value",
-		.method    = HTTP_POST,
-		.handler   = gpio_value_set_handler,
+		.uri		 = "/api/gpio/value",
+		.method		 = HTTP_POST,
+		.handler	 = gpio_value_set_handler,
 		.user_ctx = rest_context
 	};
 	httpd_register_uri_handler(server, &gpio_value_set_uri);
+
+	/* URI handler for favicon.ico */
+	httpd_uri_t _favicon_get_handler = {
+		.uri		 = "/favicon.ico",
+		.method		 = HTTP_GET,
+		.handler	 = favicon_get_handler,
+		//.user_ctx  = server_data	// Pass server data as context
+	};
+	httpd_register_uri_handler(server, &_favicon_get_handler);
 
 	return ESP_OK;
 }
