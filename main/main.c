@@ -360,13 +360,10 @@ void app_main(void)
 	dump_table(gpios, ngpios);
 
 	/* Get the local IP address */
-	//tcpip_adapter_ip_info_t ip_info;
-	//ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
 	esp_netif_ip_info_t ip_info;
 	ESP_ERROR_CHECK(esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), &ip_info));
 
 	char cparam0[64];
-	//sprintf(cparam0, "%s", ip4addr_ntoa(&ip_info.ip));
 	sprintf(cparam0, IPSTR, IP2STR(&ip_info.ip));
 	xTaskCreate(http_server_task, "HTTP", 1024*6, (void *)cparam0, 2, NULL);
 
