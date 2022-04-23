@@ -12,25 +12,16 @@ You can change gpio direction and gpio value using built-in web server.
 esp-idf v4.4 or later.   
 The mDNS strict mode [issue](https://github.com/espressif/esp-idf/issues/6190) has been resolved.   
 
-# Installation for ESP32
+# Installation
 
 ```
 git clone https://github.com/nopnop2002/esp-idf-web-gpio
 cd esp-idf-web-gpio/
-idf.py set-target esp32
+idf.py set-target {esp32/esp32s2/esp32s3/esp32c3}
 idf.py menuconfig
 idf.py flash
 ```
 
-# Installation for ESP32-S2
-
-```
-git clone https://github.com/nopnop2002/esp-idf-web-gpio
-cd esp-idf-web-gpio/
-idf.py set-target esp32s2
-idf.py menuconfig
-idf.py flash
-```
 
 # Configuration   
 You have to set this config value with menuconfig.   
@@ -52,7 +43,9 @@ The GPIO pin number to control is defined in csv/gpio.csv.
 The file gpio.csv has three columns.   
 In the first column you need to specify the GPIO number.   
 On the ESP32, GPIO up to 39.   
-On the ESP32-S2, GPIO up to 53.   
+On the ESP32-S2, GPIO up to 46.   
+On the ESP32-S3, GPIO up to 48.   
+On the ESP32-C3, GPIO up to 19.   
 This project don't care about the maximum number of GPIO.   
 This project don't care if the number is valid. You need to define it carefully.   
    

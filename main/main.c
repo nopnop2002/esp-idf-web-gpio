@@ -1,10 +1,10 @@
 /* HTTP GPIO Server Example
 
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
+	 This example code is in the Public Domain (or CC0 licensed, at your option.)
 
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
+	 Unless required by applicable law or agreed to in writing, this
+	 software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+	 CONDITIONS OF ANY KIND, either express or implied.
 */
 
 #include <stdio.h>
@@ -24,7 +24,6 @@
 #include "esp_vfs.h"
 #include "esp_spiffs.h"
 #include "mdns.h"
-#include "lwip/dns.h"
 
 #include "gpio.h"
 
@@ -44,8 +43,6 @@ QueueHandle_t xQueueHttp;
 GPIO_t *gpios;
 int16_t	ngpios;
 
-
-
 static void event_handler(void* arg, esp_event_base_t event_base,
 								int32_t event_id, void* event_data)
 {
@@ -58,7 +55,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 			s_retry_num++;
 			ESP_LOGI(TAG, "retry to connect to the AP");
 		}
-		ESP_LOGE(TAG,"connect to the AP fail");
+		ESP_LOGI(TAG,"connect to the AP fail");
 	} else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
 		ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
 		ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
@@ -138,16 +135,16 @@ void wifi_init_sta()
 	// wait for IP_EVENT_STA_GOT_IP
 	while(1) {
 		/* Wait forever for WIFI_CONNECTED_BIT to be set within the event group.
-		   Clear the bits beforeexiting. */
+		 Clear the bits beforeexiting. */
 		EventBits_t uxBits = xEventGroupWaitBits(s_wifi_event_group,
-		   WIFI_CONNECTED_BIT, /* The bits within the event group to waitfor. */
-		   pdTRUE,		  /* WIFI_CONNECTED_BIT should be cleared before returning. */
-		   pdFALSE,		  /* Don't waitfor both bits, either bit will do. */
-		   portMAX_DELAY);/* Wait forever. */
-	   if ( ( uxBits & WIFI_CONNECTED_BIT ) == WIFI_CONNECTED_BIT ){
-		   ESP_LOGI(TAG, "WIFI_CONNECTED_BIT");
-		   break;
-	   }
+			WIFI_CONNECTED_BIT, /* The bits within the event group to waitfor. */
+			pdTRUE,			/* WIFI_CONNECTED_BIT should be cleared before returning. */
+			pdFALSE,			/* Don't waitfor both bits, either bit will do. */
+			portMAX_DELAY);/* Wait forever. */
+		if ( ( uxBits & WIFI_CONNECTED_BIT ) == WIFI_CONNECTED_BIT ){
+			ESP_LOGI(TAG, "WIFI_CONNECTED_BIT");
+			break;
+		}
 	}
 	ESP_LOGI(TAG, "Got IP Address.");
 }
@@ -217,6 +214,7 @@ esp_err_t build_table(GPIO_t **tables, char *file, int16_t *ntable)
 {
 	ESP_LOGI(TAG, "build_table file=%s", file);
 	char line[128];
+	char current_line[128];
 	int _ntable = 0;
 
 	FILE* f = fopen(file, "r");
@@ -263,6 +261,7 @@ esp_err_t build_table(GPIO_t **tables, char *file, int16_t *ntable)
 		ESP_LOGD(TAG, "line=[%s]", line);
 		if (strlen(line) == 0) continue;
 		if (line[0] == '#') continue;
+		strcpy(current_line, line);
 
 		// pin number
 		int16_t pin;
@@ -270,10 +269,13 @@ esp_err_t build_table(GPIO_t **tables, char *file, int16_t *ntable)
 		if(ptr == NULL) continue;
 		ESP_LOGD(TAG, "ptr=%s", ptr);
 		pin = strtol(ptr, NULL, 10);
+#if 0
+		// ESP32S2/ESP32S3/ESP32C3 has GPIO00
 		if (pin == 0) {
-			ESP_LOGE(TAG, "This line is invalid [%s]", line);
+			ESP_LOGE(TAG, "This line is invalid [%s]", current_line);
 			continue;
 		}
+#endif
 		(*tables+index)->pin = pin;
 
 		// mode
@@ -284,7 +286,7 @@ esp_err_t build_table(GPIO_t **tables, char *file, int16_t *ntable)
 		} else if (strcmp(ptr, "O") == 0) {
 			(*tables+index)->mode = MODE_OUTPUT;
 		} else {
-			ESP_LOGE(TAG, "This line is invalid [%s]", line);
+			ESP_LOGE(TAG, "This line is invalid [%s]", current_line);
 			continue;
 		}
 
@@ -306,13 +308,11 @@ esp_err_t build_table(GPIO_t **tables, char *file, int16_t *ntable)
 void dump_table(GPIO_t *table, int16_t ntable)
 {
 	for(int i=0;i<ntable;i++) {
-		ESP_LOGI(pcTaskGetTaskName(0), "table[%d] pin=%d mode=%d value=%d",
+		ESP_LOGI(pcTaskGetName(0), "table[%d] pin=%d mode=%d value=%d",
 		i, (table+i)->pin, (table+i)->mode, (table+i)->value);
 	}
 
 }
-
-
 
 void http_server_task(void *pvParameters);
 
@@ -321,8 +321,8 @@ void app_main(void)
 	// Initialize NVS
 	esp_err_t ret = nvs_flash_init();
 	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-	  ESP_ERROR_CHECK(nvs_flash_erase());
-	  ret = nvs_flash_init();
+		ESP_ERROR_CHECK(nvs_flash_erase());
+		ret = nvs_flash_init();
 	}
 	ESP_ERROR_CHECK(ret);
 
@@ -359,11 +359,14 @@ void app_main(void)
 	dump_table(gpios, ngpios);
 
 	/* Get the local IP address */
-	tcpip_adapter_ip_info_t ip_info;
-	ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+	//tcpip_adapter_ip_info_t ip_info;
+	//ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ip_info));
+	esp_netif_ip_info_t ip_info;
+	ESP_ERROR_CHECK(esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), &ip_info));
 
 	char cparam0[64];
-	sprintf(cparam0, "%s", ip4addr_ntoa(&ip_info.ip));
+	//sprintf(cparam0, "%s", ip4addr_ntoa(&ip_info.ip));
+	sprintf(cparam0, IPSTR, IP2STR(&ip_info.ip));
 	xTaskCreate(http_server_task, "HTTP", 1024*6, (void *)cparam0, 2, NULL);
 
 	// Wait for the task to start, because cparam0 is discarded.

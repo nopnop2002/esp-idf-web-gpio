@@ -20,6 +20,7 @@
 #include "esp_err.h"
 #include "esp_vfs.h"
 #include "esp_spiffs.h"
+#include "esp_chip_info.h"
 #include "esp_http_server.h"
 #include "cJSON.h"
 #include <driver/gpio.h>
