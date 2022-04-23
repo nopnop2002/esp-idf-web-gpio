@@ -24,6 +24,7 @@
 #include "esp_vfs.h"
 #include "esp_spiffs.h"
 #include "mdns.h"
+#include "lwip/dns.h"
 
 #include "gpio.h"
 
