@@ -9,7 +9,7 @@ You can change gpio direction and gpio value using built-in web server.
 ![web-gpio-3](https://user-images.githubusercontent.com/6020549/124352333-a3d82f00-dc3a-11eb-879f-2fb976e43646.jpg)
 
 # Software requirements
-esp-idf v4.4 or later.   
+esp-idf v4.4/v5.0.   
 The mDNS strict mode [issue](https://github.com/espressif/esp-idf/issues/6190) has been resolved.   
 
 # Installation
