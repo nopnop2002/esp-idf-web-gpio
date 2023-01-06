@@ -1,0 +1,20 @@
+#The file gpio.csv has three columns.
+#In the first column you need to specify the GPIO number.
+#On the ESP32C2, GPIO up to 18.
+#This project don't care about the maximum number of GPIO. You need to define it carefully.
+
+#In the second column you have to specify the GPIO direction.
+#The GPIO direction is either I(for INPUT) or O(for OUTPUT).
+#This project don't care if GPIO is input-only. You need to define it carefully.
+
+#In the last column you have to specify the GPIO Initial value for OUTPUT.
+#INPUT pin don't care.
+
+0,O,0
+1,O,1
+2,I,0
+3,I,0
+
+#The simplest circuit connects GPIO00 and GPIO02, and GPIO01 and GPIO03.
+#If you change the value of GPIO00, the value of GPIO02 will change.
+#If you change the value of GPIO01, the value of GPIO03 will change.
