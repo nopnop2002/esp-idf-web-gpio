@@ -40,109 +40,6 @@ typedef struct rest_server_context {
 	char scratch[SCRATCH_BUFSIZE];
 } rest_server_context_t;
 
-
-#if 0
-// Calculate the size after conversion to base64
-// http://akabanessa.blog73.fc2.com/blog-entry-83.html
-int32_t calcBase64EncodedSize(int origDataSize)
-{
-	// 6bit単位のブロック数（6bit単位で切り上げ）
-	// Number of blocks in 6-bit units (rounded up in 6-bit units)
-	int32_t numBlocks6 = ((origDataSize * 8) + 5) / 6;
-	// 4文字単位のブロック数（4文字単位で切り上げ）
-	// Number of blocks in units of 4 characters (rounded up in units of 4 characters)
-	int32_t numBlocks4 = (numBlocks6 + 3) / 4;
-	// 改行を含まない文字数
-	// Number of characters without line breaks
-	int32_t numNetChars = numBlocks4 * 4;
-	// 76文字ごとの改行（改行は "\r\n" とする）を考慮したサイズ
-	// Size considering line breaks every 76 characters (line breaks are "\ r \ n")
-	//return numNetChars + ((numNetChars / 76) * 2);
-	return numNetChars;
-}
-
-esp_err_t Image2Base64(char * filename, size_t fsize, unsigned char * base64_buffer, size_t base64_buffer_len)
-{
-	unsigned char* image_buffer = NULL;
-	image_buffer = malloc(fsize);
-	if (image_buffer == NULL) {
-		ESP_LOGE(TAG, "malloc fail. image_buffer %d", fsize);
-		return ESP_FAIL;
-	}
-
-	FILE * fp;
-	if((fp=fopen(filename,"rb"))==NULL){
-		ESP_LOGE(TAG, "fopen fail. [%s]", filename);
-		free(image_buffer);
-		return ESP_FAIL;
-	} else {
-		for (int i=0;i<fsize;i++) {
-			fread(&image_buffer[i],sizeof(char),1,fp);
-		}
-		fclose(fp);
-	}
-
-	size_t encord_len;
-	esp_err_t ret = mbedtls_base64_encode(base64_buffer, base64_buffer_len, &encord_len, image_buffer, fsize);
-	ESP_LOGI(TAG, "mbedtls_base64_encode=%d encord_len=%d", ret, encord_len);
-	free(image_buffer);
-	return ret;
-}
-
-esp_err_t Image2Button(httpd_req_t *req, char * imageFileName, char * action)
-{
-	esp_err_t ret = ESP_FAIL;
-	struct stat st;
-	if (stat(imageFileName, &st) != 0) {
-		ESP_LOGE(TAG, "[%s] not found", imageFileName);
-		return ret;
-	}
-
-	char extent[8] = {0};
-	for (int i=0;i<strlen(imageFileName);i++) {
-		if (imageFileName[i] == '.') strcpy(extent, &imageFileName[i+1]);
-	}
-	ESP_LOGI(TAG, "extent=%s", extent);
-
-	ESP_LOGI(TAG, "%s exist st.st_size=%ld", imageFileName, st.st_size);
-	int32_t base64Size = calcBase64EncodedSize(st.st_size);
-	ESP_LOGI(TAG, "base64Size=%d", base64Size);
-
-	// Convert from JPEG to BASE64
-	unsigned char*	img_src_buffer = NULL;
-	size_t img_src_buffer_len = base64Size + 1;
-	img_src_buffer = malloc(img_src_buffer_len);
-	if (img_src_buffer == NULL) {
-		ESP_LOGE(TAG, "malloc fail. img_src_buffer_len %d", img_src_buffer_len);
-	} else {
-		ret = Image2Base64(imageFileName, st.st_size, img_src_buffer, img_src_buffer_len);
-		ESP_LOGI(TAG, "Image2Base64=%d", ret);
-		if (ret != 0) {
-			ESP_LOGE(TAG, "Error in mbedtls encode! ret = -0x%x", -ret);
-		} else {
-			httpd_resp_sendstr_chunk(req, "<form method=\"post\" action=\"");
-			httpd_resp_sendstr_chunk(req, action);
-			httpd_resp_sendstr_chunk(req, "\">");
-			httpd_resp_sendstr_chunk(req, "<button type=\"submit\">");
-
-			// <img src="data:image/jpeg;base64,ENCORDED_DATA" />
-			if (strcmp(extent, "png") == 0) {
-				httpd_resp_sendstr_chunk(req, "<img src=\"data:image/png;base64,");
-			} else {
-				httpd_resp_sendstr_chunk(req, "<img src=\"data:image/jpeg;base64,");
-			}
-			httpd_resp_sendstr_chunk(req, (char *)img_src_buffer);
-			httpd_resp_sendstr_chunk(req, "\" />");
-
-			httpd_resp_sendstr_chunk(req, "</button></form>");
-			if (img_src_buffer != NULL) free(img_src_buffer);
-			ret = ESP_OK;
-		}
-	}
-	return ret;
-}
-#endif
-
 esp_err_t Text2Button(httpd_req_t *req, char * textFileName, char * type, char * action)
 {
 	esp_err_t ret = ESP_FAIL;
@@ -230,13 +127,13 @@ esp_err_t Image2Html(httpd_req_t *req, char * filename, char * type)
 	return ESP_OK;
 }
 
-/* Handler for roor get handler */
+/* Handler for root get */
 static esp_err_t root_get_handler(httpd_req_t *req)
 {
 	ESP_LOGD(TAG, "root_get_handler req->uri=[%s]", req->uri);
 
 	for(int index=0;index<ngpios;index++) {
-		ESP_LOGD(TAG, "gpios[%d] pin=%d mode=%d value=%d",
+		ESP_LOGD(__FUNCTION__, "gpios[%d] pin=%d mode=%d value=%d",
 		index, gpios[index].pin, gpios[index].mode, gpios[index].value);
 	}
 
@@ -262,7 +159,7 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 	char textFileName[64];
 	char action[64];
 	for(int index=0;index<ngpios;index++) {
-		ESP_LOGD(TAG, "gpios[%d] pin=%d mode=%d value=%d",
+		ESP_LOGD(__FUNCTION__, "gpios[%d] pin=%d mode=%d value=%d",
 		index, gpios[index].pin, gpios[index].mode, gpios[index].value);
 		httpd_resp_sendstr_chunk(req, "<tr>");
 		sprintf(chunk, "<td align=\"center\">%02d</td>", gpios[index].pin);
@@ -271,7 +168,7 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 			strcpy(textFileName, "/icons/box-in-icon.txt");
 			// Get current value
 			gpios[index].value = gpio_get_level(gpios[index].pin);
-			ESP_LOGI(TAG, "gpios.pin=%d value=%d", gpios[index].pin, gpios[index].value);
+			ESP_LOGI(__FUNCTION__, "gpios.pin=%d value=%d", gpios[index].pin, gpios[index].value);
 		} else { // OUTPUT pin
 			strcpy(textFileName, "/icons/box-out-icon.txt");
 		}
@@ -345,30 +242,30 @@ static esp_err_t root_get_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
-/* Handler for change gpio mode handler */
+/* Handler for change gpio mode */
 static esp_err_t change_mode_handler(httpd_req_t *req)
 {
-	ESP_LOGI(TAG, "change_mode_handler req->uri=[%s]", req->uri);
-	ESP_LOGI(TAG, "change_mode_handler req->uri=[%s]", req->uri+strlen("/changeMode/"));
+	ESP_LOGI(__FUNCTION__, "change_mode_handler req->uri=[%s]", req->uri);
+	ESP_LOGI(__FUNCTION__, "change_mode_handler req->uri=[%s]", req->uri+strlen("/changeMode/"));
 
 	GPIO_t gpioBuf;
 	long wk;
 	gpioBuf.command = CMD_SETMODE;
 	if (strncmp(req->uri+strlen("/changeMode/"), "INPUT/", 6) == 0) {
 		wk = strtol(req->uri+strlen("/changeMode/INPUT/"), NULL, 10);
-		ESP_LOGI(TAG, "[to INPUT] index=%ld gpio=%d", wk, gpios[wk].pin);
+		ESP_LOGI(__FUNCTION__, "[to INPUT] index=%ld gpio=%d", wk, gpios[wk].pin);
 		gpioBuf.pin = wk;
 		gpioBuf.mode = MODE_INPUT;
 		if (xQueueSend(xQueueHttp, &gpioBuf, portMAX_DELAY) != pdPASS) {
-			ESP_LOGE(TAG, "xQueueSend Fail");
+			ESP_LOGE(__FUNCTION__, "xQueueSend Fail");
 		}
 	} else if (strncmp(req->uri+strlen("/changeMode/"), "OUTPUT/", 7) == 0) {
 		wk = strtol(req->uri+strlen("/changeMode/OUTPUT/"), NULL, 10);
-		ESP_LOGI(TAG, "[to OUTPUT] index=%ld gpio=%d", wk, gpios[wk].pin);
+		ESP_LOGI(__FUNCTION__, "[to OUTPUT] index=%ld gpio=%d", wk, gpios[wk].pin);
 		gpioBuf.pin = wk;
 		gpioBuf.mode = MODE_OUTPUT;
 		if (xQueueSend(xQueueHttp, &gpioBuf, portMAX_DELAY) != pdPASS) {
-			ESP_LOGE(TAG, "xQueueSend Fail");
+			ESP_LOGE(__FUNCTION__, "xQueueSend Fail");
 		}
 	}
 
@@ -378,34 +275,34 @@ static esp_err_t change_mode_handler(httpd_req_t *req)
 #ifdef CONFIG_EXAMPLE_HTTPD_CONN_CLOSE_HEADER
 	httpd_resp_set_hdr(req, "Connection", "close");
 #endif
-	httpd_resp_sendstr(req, "File change mode successfully");
+	httpd_resp_sendstr(req, "File change mode successfully\n");
 	return ESP_OK;
 }
 
-/* Handler for change gpio value handler */
+/* Handler for change gpio value */
 static esp_err_t change_value_handler(httpd_req_t *req)
 {
-	ESP_LOGI(TAG, "change_value_handler req->uri=[%s]", req->uri);
-	ESP_LOGI(TAG, "change_value_handler req->uri=[%s]", req->uri+strlen("/changeValue/"));
+	ESP_LOGI(__FUNCTION__, "change_value_handler req->uri=[%s]", req->uri);
+	ESP_LOGI(__FUNCTION__, "change_value_handler req->uri=[%s]", req->uri+strlen("/changeValue/"));
 
 	GPIO_t gpioBuf;
 	long wk;
 	gpioBuf.command = CMD_SETVALUE;
 	if (strncmp(req->uri+strlen("/changeValue/"), "ON/", 3) == 0) {
 		wk = strtol(req->uri+strlen("/changeValue/ON/"), NULL, 10);
-		ESP_LOGI(TAG, "[to ON] index=%ld gpio=%d", wk, gpios[wk].pin);
+		ESP_LOGI(__FUNCTION__, "[to ON] index=%ld gpio=%d", wk, gpios[wk].pin);
 		gpioBuf.pin = wk;
 		gpioBuf.value = 1;
 		if (xQueueSend(xQueueHttp, &gpioBuf, portMAX_DELAY) != pdPASS) {
-			ESP_LOGE(TAG, "xQueueSend Fail");
+			ESP_LOGE(__FUNCTION__, "xQueueSend Fail");
 		}
 	} else if (strncmp(req->uri+strlen("/changeValue/"), "OFF/", 4) == 0) {
 		wk = strtol(req->uri+strlen("/changeValue/OFF/"), NULL, 10);
-		ESP_LOGI(TAG, "[to OFF] index=%ld gpio=%d", wk, gpios[wk].pin);
+		ESP_LOGI(__FUNCTION__, "[to OFF] index=%ld gpio=%d", wk, gpios[wk].pin);
 		gpioBuf.pin = wk;
 		gpioBuf.value = 0;
 		if (xQueueSend(xQueueHttp, &gpioBuf, portMAX_DELAY) != pdPASS) {
-			ESP_LOGE(TAG, "xQueueSend Fail");
+			ESP_LOGE(__FUNCTION__, "xQueueSend Fail");
 		}
 	}
 
@@ -415,14 +312,14 @@ static esp_err_t change_value_handler(httpd_req_t *req)
 #ifdef CONFIG_EXAMPLE_HTTPD_CONN_CLOSE_HEADER
 	httpd_resp_set_hdr(req, "Connection", "close");
 #endif
-	httpd_resp_sendstr(req, "File change value successfully");
+	httpd_resp_sendstr(req, "File change value successfully\n");
 	return ESP_OK;
 }
 
-/* Handler for getting system information handler */
+/* Handler for getting system information */
 static esp_err_t system_info_get_handler(httpd_req_t *req)
 {
-	ESP_LOGI(TAG, "system_info_get_handler req->uri=[%s]", req->uri);
+	ESP_LOGI(__FUNCTION__, "system_info_get_handler req->uri=[%s]", req->uri);
 	httpd_resp_set_type(req, "application/json");
 	cJSON *root = cJSON_CreateObject();
 	esp_chip_info_t chip_info;
@@ -458,17 +355,17 @@ cJSON *Create_array_of_anything(cJSON **objects,int array_num)
 }
 
 
-/* Handler for getting gpio infomation handler */
+/* Handler for getting gpio infomation */
 static esp_err_t gpio_info_get_handler(httpd_req_t *req)
 {
-	ESP_LOGI(TAG, "gpio_info_get_handler req->uri=[%s]", req->uri);
+	ESP_LOGI(__FUNCTION__, "req->uri=[%s]", req->uri);
 	for(int index=0;index<ngpios;index++) {
-		ESP_LOGI(TAG, "gpios[%d] pin=%d mode=%d value=%d",
+		ESP_LOGI(__FUNCTION__, "gpios[%d] pin=%d mode=%d value=%d",
 		index, gpios[index].pin, gpios[index].mode, gpios[index].value);
 		if (gpios[index].mode == 1) { // INPUT pin
 			// Get current value
 			gpios[index].value = gpio_get_level(gpios[index].pin);
-			ESP_LOGI(TAG, "gpios.pin=%d value=%d", gpios[index].pin, gpios[index].value);
+			ESP_LOGI(__FUNCTION__, "gpios.pin=%d value=%d", gpios[index].pin, gpios[index].value);
 		}
 	}
 
@@ -479,7 +376,7 @@ static esp_err_t gpio_info_get_handler(httpd_req_t *req)
 	cJSON **objects = NULL;
 	objects = (cJSON **)calloc(array_num, sizeof(cJSON *));
 	if (objects == NULL) {
-		ESP_LOGE(TAG, "calloc fail");
+		ESP_LOGE(__FUNCTION__, "calloc fail");
 	}
 
 	for(int i=0;i<array_num;i++) {
@@ -501,7 +398,7 @@ static esp_err_t gpio_info_get_handler(httpd_req_t *req)
 	}
 	//const char *gpio_info = cJSON_Print(root);
 	char *gpio_info = cJSON_Print(root);
-	ESP_LOGD(TAG, "gpio_info\n%s",gpio_info);
+	ESP_LOGD(__FUNCTION__, "gpio_info\n%s",gpio_info);
 	httpd_resp_sendstr(req, gpio_info);
 	// Buffers returned by cJSON_Print must be freed by the caller.
 	// Please use the proper API (cJSON_free) rather than directly calling stdlib free.
@@ -511,10 +408,10 @@ static esp_err_t gpio_info_get_handler(httpd_req_t *req)
 	return ESP_OK;
 }
 
-/* Handler for setting gpio mode handler */
+/* Handler for setting gpio mode */
 static esp_err_t gpio_mode_set_handler(httpd_req_t *req)
 {
-	ESP_LOGI(TAG, "gpio_mode_set_handler req->uri=[%s]", req->uri);
+	ESP_LOGI(__FUNCTION__, "req->uri=[%s]", req->uri);
 	int total_len = req->content_len;
 	int cur_len = 0;
 	char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
@@ -534,7 +431,7 @@ static esp_err_t gpio_mode_set_handler(httpd_req_t *req)
 		cur_len += received;
 	}
 	buf[total_len] = '\0';
-	ESP_LOGI(TAG, "buf=[%s]", buf);
+	ESP_LOGI(__FUNCTION__, "buf=[%s]", buf);
 
 	bool parse = true;
 	cJSON *root = cJSON_Parse(buf);
@@ -545,7 +442,7 @@ static esp_err_t gpio_mode_set_handler(httpd_req_t *req)
 	if (state) {
 		gpio = cJSON_GetObjectItem(root, "gpio")->valueint;
 	} else {
-		ESP_LOGE(TAG, "gpio item not nound");
+		ESP_LOGE(__FUNCTION__, "gpio item not found");
 		parse = false;
 	}
 
@@ -555,23 +452,23 @@ static esp_err_t gpio_mode_set_handler(httpd_req_t *req)
 	if (state) {
 		//mode = cJSON_GetObjectItem(root,"mode")->valuestring;
 		strcpy(mode, cJSON_GetObjectItem(root,"mode")->valuestring);
-		ESP_LOGI(TAG, "mode=[%s]", mode);
+		ESP_LOGI(__FUNCTION__, "mode=[%s]", mode);
 		//if (value != 0 && value != 1) {
 		if (strcmp(mode, "INPUT") != 0 && strcmp(mode, "OUTPUT") != 0 ) {
-			ESP_LOGE(TAG, "mode item not correct");
+			ESP_LOGE(__FUNCTION__, "mode item not correct");
 			parse = false;
 		}
 	} else {
-		ESP_LOGE(TAG, "mode item not nound");
+		ESP_LOGE(__FUNCTION__, "mode item not found");
 		parse = false;
 	}
 
 	cJSON_Delete(root);
 	if (parse) {
-		ESP_LOGI(TAG, "gpio_mode_set_handler gpio = %d, mode = %s", gpio, mode);
+		ESP_LOGI(__FUNCTION__, "gpio_mode_set_handler gpio = %d, mode = %s", gpio, mode);
 		bool isMatch = false;
 		for(int index=0;index<ngpios;index++) {
-			ESP_LOGI(TAG, "gpios[%d] pin=%d mode=%d value=%d",
+			ESP_LOGI(__FUNCTION__, "gpios[%d] pin=%d mode=%d value=%d",
 			index, gpios[index].pin, gpios[index].mode, gpios[index].value);
 			if (gpios[index].pin == gpio) {
 				isMatch = true;
@@ -579,35 +476,35 @@ static esp_err_t gpio_mode_set_handler(httpd_req_t *req)
 				gpioBuf.command = CMD_SETMODE;
 				gpioBuf.pin = index;
 				if (strcmp(mode, "INPUT") == 0) {
-					ESP_LOGI(TAG, "[to INPUT] index=%d gpio=%d", index, gpios[index].pin);
+					ESP_LOGI(__FUNCTION__, "[to INPUT] index=%d gpio=%d", index, gpios[index].pin);
 					gpioBuf.mode = MODE_INPUT;
 				} else {
-					ESP_LOGI(TAG, "[to OUTPUT] index=%d gpio=%d", index, gpios[index].pin);
+					ESP_LOGI(__FUNCTION__, "[to OUTPUT] index=%d gpio=%d", index, gpios[index].pin);
 					gpioBuf.mode = MODE_OUTPUT;
 				}
 				if (xQueueSend(xQueueHttp, &gpioBuf, portMAX_DELAY) != pdPASS) {
-					ESP_LOGE(TAG, "xQueueSend Fail");
+					ESP_LOGE(__FUNCTION__, "xQueueSend Fail");
 				}
-				httpd_resp_sendstr(req, "GPIO mode set successfully");
+				httpd_resp_sendstr(req, "GPIO mode set successfully\n");
 				break;
 			} // end if
 		} // end for
 		if (isMatch == false) {
-			ESP_LOGE(TAG, "Not found gpio in csv");
-			httpd_resp_sendstr(req, "Not found gpio in csv");
+			ESP_LOGE(__FUNCTION__, "Not found gpio in csv");
+			httpd_resp_sendstr(req, "Not found gpio in csv\n");
 		}
 		
 	} else {
-		ESP_LOGE(TAG, "Request parameter not correct");
-		httpd_resp_sendstr(req, "Request parameter not correct");
+		ESP_LOGE(__FUNCTION__, "Request parameter not correct [%s]", buf);
+		httpd_resp_sendstr(req, "Request parameter not correct\n");
 	}
 	return ESP_OK;
 }
 
-/* Handler for setting gpio value handler */
+/* Handler for setting gpio value */
 static esp_err_t gpio_value_set_handler(httpd_req_t *req)
 {
-	ESP_LOGI(TAG, "gpio_value_set_handler req->uri=[%s]", req->uri);
+	ESP_LOGI(__FUNCTION__, "req->uri=[%s]", req->uri);
 	int total_len = req->content_len;
 	int cur_len = 0;
 	char *buf = ((rest_server_context_t *)(req->user_ctx))->scratch;
@@ -627,7 +524,7 @@ static esp_err_t gpio_value_set_handler(httpd_req_t *req)
 		cur_len += received;
 	}
 	buf[total_len] = '\0';
-	ESP_LOGI(TAG, "buf=[%s]", buf);
+	ESP_LOGI(__FUNCTION__, "buf=[%s]", buf);
 
 	bool parse = true;
 	cJSON *root = cJSON_Parse(buf);
@@ -638,7 +535,7 @@ static esp_err_t gpio_value_set_handler(httpd_req_t *req)
 	if (state) {
 		gpio = cJSON_GetObjectItem(root, "gpio")->valueint;
 	} else {
-		ESP_LOGE(TAG, "gpio item not nound");
+		ESP_LOGE(__FUNCTION__, "gpio item not found");
 		parse = false;
 	}
 
@@ -648,52 +545,52 @@ static esp_err_t gpio_value_set_handler(httpd_req_t *req)
 	if (state) {
 		value = cJSON_GetObjectItem(root, "value")->valueint;
 		if (value != 0 && value != 1) {
-			ESP_LOGE(TAG, "value item not correct");
+			ESP_LOGE(__FUNCTION__, "value item not correct");
 			parse = false;
 		}
 	} else {
-		ESP_LOGE(TAG, "value item not found");
+		ESP_LOGE(__FUNCTION__, "value item not found");
 		parse = false;
 	}
 
 	cJSON_Delete(root);
 	if (parse) {
-		ESP_LOGI(TAG, "gpio_value_set_handler gpio = %d, value = %d", gpio, value);
+		ESP_LOGI(__FUNCTION__, "gpio_value_set_handler gpio = %d, value = %d", gpio, value);
 		bool isMatch = false;
 		for(int index=0;index<ngpios;index++) {
-			ESP_LOGI(TAG, "gpios[%d] pin=%d mode=%d value=%d",
+			ESP_LOGI(__FUNCTION__, "gpios[%d] pin=%d mode=%d value=%d",
 			index, gpios[index].pin, gpios[index].mode, gpios[index].value);
 			if (gpios[index].pin == gpio) {
 				isMatch = true;
 				if (gpios[index].mode == MODE_INPUT) {
-					ESP_LOGE(TAG, "gpio is for INPUT %d", gpio);
-					httpd_resp_sendstr(req, "GPIO is for INPUT");
+					ESP_LOGE(__FUNCTION__, "GPIO%d is for INPUT", gpio);
+					httpd_resp_sendstr(req, "GPIO is for INPUT\n");
 				} else {
 					GPIO_t gpioBuf;
 					gpioBuf.command = CMD_SETVALUE;
 					gpioBuf.pin = index;
 					gpioBuf.value = value;
 					if (value == 0) {
-						ESP_LOGI(TAG, "[to OFF] index=%d gpio=%d", index, gpios[index].pin);
+						ESP_LOGI(__FUNCTION__, "[to OFF] index=%d gpio=%d", index, gpios[index].pin);
 					} else {
-						ESP_LOGI(TAG, "[to ON] index=%d gpio=%d", index, gpios[index].pin);
+						ESP_LOGI(__FUNCTION__, "[to ON] index=%d gpio=%d", index, gpios[index].pin);
 					}
 					if (xQueueSend(xQueueHttp, &gpioBuf, portMAX_DELAY) != pdPASS) {
-						ESP_LOGE(TAG, "xQueueSend Fail");
+						ESP_LOGE(__FUNCTION__, "xQueueSend Fail");
 					}
-					httpd_resp_sendstr(req, "GPIO value set successfully");
+					httpd_resp_sendstr(req, "GPIO value set successfully\n");
 				}
 				break;
 			} // end if
 		} // end for
 		if (isMatch == false) {
-			ESP_LOGE(TAG, "Not found gpio in csv");
-			httpd_resp_sendstr(req, "Not found gpio in csv");
+			ESP_LOGE(__FUNCTION__, "Not found gpio in csv");
+			httpd_resp_sendstr(req, "Not found gpio in csv\n");
 		}
 		
 	} else {
-		ESP_LOGE(TAG, "Request parameter not correct");
-		httpd_resp_sendstr(req, "Request parameter not correct");
+		ESP_LOGE(__FUNCTION__, "Request parameter not correct [%s]", buf);
+		httpd_resp_sendstr(req, "Request parameter not correct\n");
 	}
 	return ESP_OK;
 }
@@ -701,7 +598,7 @@ static esp_err_t gpio_value_set_handler(httpd_req_t *req)
 /* favicon get handler */
 static esp_err_t favicon_get_handler(httpd_req_t *req)
 {
-	ESP_LOGI(TAG, "favicon_get_handler req->uri=[%s]", req->uri);
+	ESP_LOGI(__FUNCTION__, "favicon_get_handler req->uri=[%s]", req->uri);
 	return ESP_OK;
 }
 
@@ -710,7 +607,7 @@ esp_err_t start_server(const char *base_path, int port)
 {
 	rest_server_context_t *rest_context = calloc(1, sizeof(rest_server_context_t));
 	if (rest_context == NULL) {
-		ESP_LOGE(TAG, "No memory for rest context");
+		ESP_LOGE(__FUNCTION__, "No memory for rest context");
 		while(1) { vTaskDelay(1); }
 	}
 
@@ -723,9 +620,9 @@ esp_err_t start_server(const char *base_path, int port)
 	 * target URIs which match the wildcard scheme */
 	config.uri_match_fn = httpd_uri_match_wildcard;
 
-	ESP_LOGD(TAG, "Starting HTTP Server on port: '%d'", config.server_port);
+	ESP_LOGD(__FUNCTION__, "Starting HTTP Server on port: '%d'", config.server_port);
 	if (httpd_start(&server, &config) != ESP_OK) {
-		ESP_LOGE(TAG, "Failed to start file server!");
+		ESP_LOGE(__FUNCTION__, "Failed to start file server!");
 		return ESP_FAIL;
 	}
 
