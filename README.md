@@ -10,7 +10,7 @@ You can change gpio direction and gpio value using built-in web server.
 
 # Software requirements
 ESP-IDF V4.4/V5.0.   
-ESP-IDF V5 is required when using ESP32-C2.   
+ESP-IDF V5.0 is required when using ESP32-C2.   
 
 # Installation
 
