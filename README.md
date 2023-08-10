@@ -9,15 +9,15 @@ You can change gpio direction and gpio value using built-in web server.
 ![web-gpio-3](https://user-images.githubusercontent.com/6020549/124352333-a3d82f00-dc3a-11eb-879f-2fb976e43646.jpg)
 
 # Software requirements
-ESP-IDF V4.4/V5.0.   
+ESP-IDF V4.4/V5.x.   
 ESP-IDF V5.0 is required when using ESP32-C2.   
+ESP-IDF V5.1 is required when using ESP32-C6.   
 
 # Installation
 
 ```
 git clone https://github.com/nopnop2002/esp-idf-web-gpio
 cd esp-idf-web-gpio/
-idf.py set-target {esp32/esp32s2/esp32s3/esp32c2/esp32c3}
 idf.py menuconfig
 idf.py flash
 ```
