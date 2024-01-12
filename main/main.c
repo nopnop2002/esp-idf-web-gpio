@@ -1,10 +1,11 @@
-/* HTTP GPIO Server Example
+/*
+	HTTP GPIO Server Example
 
-	 This example code is in the Public Domain (or CC0 licensed, at your option.)
+	This example code is in the Public Domain (or CC0 licensed, at your option.)
 
-	 Unless required by applicable law or agreed to in writing, this
-	 software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-	 CONDITIONS OF ANY KIND, either express or implied.
+	Unless required by applicable law or agreed to in writing, this
+	software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+	CONDITIONS OF ANY KIND, either express or implied.
 */
 
 #include <stdio.h>
@@ -157,6 +158,9 @@ void initialise_mdns(void)
 	//set mDNS hostname (required if you want to advertise services)
 	ESP_ERROR_CHECK( mdns_hostname_set(CONFIG_MDNS_HOSTNAME) );
 	ESP_LOGI(TAG, "mdns hostname set to: [%s]", CONFIG_MDNS_HOSTNAME);
+
+	//initialize service
+	ESP_ERROR_CHECK( mdns_service_add(NULL, "_http", "_tcp", CONFIG_WEB_PORT, NULL, 0) );
 
 #if 0
 	//set default mDNS instance name
