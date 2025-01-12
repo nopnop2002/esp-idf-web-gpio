@@ -1,5 +1,8 @@
 # esp-idf-web-gpio
-GPIO control using web browser.
+GPIO control using web browser.   
+ESP-IDF contains a lot of example code, but there is no example to create FORM on the WEB and input data from FORM.   
+This project reads value from FORM on the WEB and save in the NVS area.   
+No library other than ESP-IDF is required to read the data from the WEB page.   
 
 ![web-gpio-1](https://user-images.githubusercontent.com/6020549/124352292-84d99d00-dc3a-11eb-8f8a-45472e45eebe.jpg)
 
