@@ -39,7 +39,7 @@ You can connect using mDNS host name.
 
 
 # Definition GPIO   
-The GPIO pin number to control is defined in csv/gpio.csv.   
+The GPIO numbers to be controlled in this project will define in csv/gpio.csv.   
 The file gpio.csv has three columns.   
 In the first column you need to specify the GPIO number.   
 On the ESP32, GPIO up to 39.   
