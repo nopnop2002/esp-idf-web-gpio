@@ -35,7 +35,7 @@ You can use static ip.
 You can connect using mDNS host name.
 ![config-mDNS](https://user-images.githubusercontent.com/6020549/124352362-c79b7500-dc3a-11eb-85be-199e1ea3bae6.jpg)
 
-![web-gpio-mdns](https://user-images.githubusercontent.com/6020549/134443304-64e76a3a-beec-4072-ab68-131d9bec01fd.jpg)
+<img width="662" height="534" alt="Image" src="https://github.com/user-attachments/assets/844253b0-71ec-4fa5-b89b-0a2c617cca11" />
 
 
 # Definition GPIO   
